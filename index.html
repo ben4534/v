@@ -1,0 +1,199 @@
+
+---
+
+## Datei 1: `virus.html`
+
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handy-Scanner v1.0</title>
+<style>
+  body {
+    background: #0a0e17;
+    color: #00ff9d;
+    font-family: monospace;
+    padding: 20px;
+    margin: 0;
+  }
+  h1 { font-size: 20px; border-bottom: 1px solid #00ff9d; padding-bottom: 8px; }
+  #log {
+    background: #000;
+    border: 1px solid #00ff9d33;
+    padding: 12px;
+    height: 55vh;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .ok    { color: #00ff9d; }
+  .warn  { color: #ffcc00; }
+  .err   { color: #ff3b3b; }
+  button {
+    background: #00ff9d;
+    color: #000;
+    border: none;
+    padding: 12px 20px;
+    font-family: monospace;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 12px;
+    cursor: pointer;
+  }
+  button:disabled { background: #444; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>&gt; SYSTEM-SCAN GESTARTET_</h1>
+<div id="log"></div>
+<button id="btn" onclick="start()">SCAN STARTEN</button>
+
+<script>
+const log = document.getElementById('log');
+const btn = document.getElementById('btn');
+
+function line(text, cls = '') {
+  const p = document.createElement('div');
+  p.className = cls;
+  p.textContent = text;
+  log.appendChild(p);
+  log.scrollTop = log.scrollHeight;
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function start() {
+  btn.disabled = true;
+  log.innerHTML = '';
+
+  line('> Initialisiere Scanner...');
+  await wait(600);
+
+  line('> Analysiere Systemumgebung...', 'warn');
+  line('  Plattform : ' + navigator.platform);
+  line('  UserAgent : ' + navigator.userAgent);
+  line('  Sprache   : ' + navigator.language);
+  line('  Sprachen  : ' + (navigator.languages || []).join(', '));
+  line('  CPU-Kerne : ' + (navigator.hardwareConcurrency || 'unbekannt'));
+  line('  RAM       : ' + (navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'unbekannt'));
+  await wait(800);
+
+  line('> Lese Displaydaten...', 'warn');
+  line('  Auflösung : ' + screen.width + ' x ' + screen.height + ' px');
+  line('  Verfügbar : ' + screen.availWidth + ' x ' + screen.availHeight + ' px');
+  line('  Farbtiefe : ' + screen.colorDepth + ' bit');
+  line('  PixelRatio: ' + window.devicePixelRatio);
+  line('  Fenster   : ' + window.innerWidth + ' x ' + window.innerHeight);
+  await wait(700);
+
+  line('> Ermittle Zeitzone...', 'warn');
+  line('  Zeitzone  : ' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+  line('  Lokale Zeit: ' + new Date().toString());
+  line('  UTC-Offset: ' + (-new Date().getTimezoneOffset() / 60) + ' h');
+  await wait(600);
+
+  line('> Scanne Netzwerk...', 'warn');
+  line('  Online    : ' + navigator.onLine);
+  line('  Verbindung: ' + (navigator.connection ? navigator.connection.effectiveType : 'unbekannt'));
+  line('  Downlink  : ' + (navigator.connection ? navigator.connection.downlink + ' Mbit/s' : 'unbekannt'));
+  line('  IP-Adresse wird abgefragt...', 'warn');
+
+  try {
+    const r = await fetch('https://api.ipify.org?format=json');
+    const d = await r.json();
+    line('  ÖFFENTLICHE IP: ' + d.ip, 'ok');
+  } catch (e) {
+    line('  IP-Abfrage fehlgeschlagen (offline?)', 'err');
+  }
+
+  line('> Prüfe Energieversorgung...', 'warn');
+  if (navigator.getBattery) {
+    try {
+      const b = await navigator.getBattery();
+      line('  Akkustand : ' + Math.round(b.level * 100) + ' %');
+      line('  Ladestatus: ' + (b.charging ? 'LÄDT' : 'ENTLÄDT'));
+      line('  Ladezeit  : ' + Math.round(b.chargingTime / 60) + ' min');
+      line('  Restzeit  : ' + Math.round(b.dischargingTime / 60) + ' min');
+    } catch (e) {
+      line('  Akku-API blockiert', 'err');
+    }
+  } else {
+    line('  Akku-API nicht verfügbar', 'err');
+  }
+  await wait(700);
+
+  line('> Messe Speicherplatz...', 'warn');
+  if (navigator.storage && navigator.storage.estimate) {
+    const est = await navigator.storage.estimate();
+    line('  Belegt    : ' + (est.usage / 1048576).toFixed(2) + ' MB');
+    line('  Verfügbar : ' + (est.quota / 1048576).toFixed(2) + ' MB');
+  } else {
+    line('  Speicher-API nicht verfügbar', 'err');
+  }
+  await wait(600);
+
+  line('> Kalibriere Sensoren...', 'warn');
+  if (window.DeviceOrientationEvent) {
+    line('  Lagesensor: vorhanden');
+  }
+  if (window.DeviceMotionEvent) {
+    line('  Bewegungssensor: vorhanden');
+  }
+  if (navigator.vibrate) {
+    line('  Vibrator  : vorhanden');
+    navigator.vibrate([100, 50, 100]);
+  }
+  await wait(600);
+
+  line('> Durchsuche Cookies...', 'warn');
+  line('  Cookies aktiv: ' + navigator.cookieEnabled);
+  line('  Cookie-Daten : ' + (document.cookie || '(leer)'));
+  await wait(600);
+
+  line('> Erstelle Fingerprint...', 'warn');
+  const fp = [
+    navigator.userAgent,
+    screen.width + 'x' + screen.height,
+    screen.colorDepth,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.language,
+    navigator.hardwareConcurrency
+  ].join('|');
+
+  let hash = 0;
+  for (let i = 0; i < fp.length; i++) {
+    hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+    hash |= 0;
+  }
+  line('  HASH: ' + Math.abs(hash).toString(16).toUpperCase(), 'ok');
+  await wait(800);
+
+  line('');
+  line('> === SELBSTZERSTÖRUNG WIRD VORBEREITET ===', 'err');
+  await wait(900);
+  line('  3...', 'err'); await wait(700);
+  line('  2...', 'err'); await wait(700);
+  line('  1...', 'err'); await wait(700);
+
+  navigator.vibrate([300, 100, 300, 100, 600]);
+
+  line('');
+  line('  *** HANDY WURDE ZERSTÖRT ***', 'err');
+  line('  (keine Sorge, es läuft noch)', 'ok');
+  line('');
+  line('> Scan abgeschlossen. _');
+}
+
+window.addEventListener('load', () => setTimeout(start, 400));
+</script>
+
+</body>
+</html>
+```
+
+---
